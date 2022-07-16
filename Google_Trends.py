@@ -13,7 +13,7 @@ import finnhub
 finnhub_client = finnhub.Client(api_key="INSERT_API_KEY")
 
 # Retrieves a stock ticker's company name and removes business types such as LLC, Ltd, Inc
-# Example Usage: google_trends_dataframe('Crocs')
+# Example Usage: get_brand_name('CROX')
 def get_brand_name (ticker):
   try:
     company_name = finnhub_client.company_profile2(symbol= ticker)['name'].split(' ')
@@ -25,7 +25,7 @@ def get_brand_name (ticker):
 
 
 # Returns a Dataframe for google search trends of a given search term over a period of time
-# Example Usage: google_trends_dataframe('Crocs', 180)
+# Example Usage: google_trends_dataframe('CROX', 180)
 # For Daily Data: Total_days must be between 30 and 180
 def google_trends_dataframe(ticker, total_days):
     search_term = get_brand_name(ticker)
