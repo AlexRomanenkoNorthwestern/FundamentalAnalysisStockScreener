@@ -34,6 +34,6 @@ def get_website_visits(ticker):
     except:
       print('Stock ticker not found')
     return(df)
-#print (get_website_visits('CROX'))
+
 
 
