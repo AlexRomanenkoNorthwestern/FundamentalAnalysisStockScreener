@@ -1,3 +1,15 @@
+import General
+
+# Import Libraries
+from dateutil.relativedelta import relativedelta
+import yfinance as yf
+from urllib.request import urlopen, Request
+from bs4 import BeautifulSoup, element
+import pandas as pd
+from datetime import datetime, timedelta, date, time
+import finnhub
+
+
 # Used for a table
 def insider_transactions(ticker):
     finviz_url = 'https://finviz.com/quote.ashx?t='
@@ -22,13 +34,16 @@ def insider_transactions(ticker):
     del insider['SEC Form 4']
     return insider
 
-from dateutil.relativedelta import relativedelta
-import yfinance as yf
 # net insider transactions over the past three months
 def net_insider_transactions(ticker):
     today = datetime.now().strftime("%Y-%m-%d")
     three_months_ago = (datetime.now() + relativedelta(months=-3)).strftime("%Y-%m-%d")
-    df = finnhub_client.stock_insider_transactions(ticker, three_months_ago, today)['data']
+    try:
+        df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
+    except:
+        time.sleep(10)
+        df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
+
     net = 0
     for i in range(len(df)):
         net += (int(df[i]['change']))
