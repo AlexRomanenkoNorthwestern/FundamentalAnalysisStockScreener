@@ -1,0 +1,125 @@
+import Semrush
+import Finviz
+import Google
+import FootTraffic
+import Yahoo
+import Dashboard
+import General
+# import social media follower data
+
+import pandas as pd
+import datetime as dt
+from datetime import datetime, timedelta, date, time
+import numpy as np
+import math
+
+
+# Weights sum to 1
+def weights (length):
+    most_recent_weighting = .1
+    weight_factor = .95
+    vector = []
+    for i in np.linspace(1,length, num = length):
+        vector.append(most_recent_weighting)
+        most_recent_weighting = (most_recent_weighting)*weight_factor
+    total = sum(vector)
+    array = np.array(vector)
+    vector = array * 1/total #vector weights sum to 1
+    return(vector)
+
+# Weighted Mean
+def m(x,w):
+    total = 0
+    x = np.array(x)
+    for i in np.linspace(0,len(x)-1, num = len(x)):
+        total += x[int(i)] * w[int(i)]
+    return(total/np.sum(w))
+
+# Weighted Covariance
+def cov(x,y,w):
+    total = 0
+    x = np.array(x)
+    y = np.array(y)
+    for i in np.linspace(0,len(x)-1, num = len(x)):
+        total += w[int(i)] * (x[int(i)] - m(x,w)) * (y[int(i)]- m(y,w))
+    return(total/np.sum(w))
+
+# Weighted Correlation
+def weighted_corr(x,y,w):
+    return(cov(x,y,w)/np.sqrt(cov(x,x,w)*cov(y,y,w)))
+
+
+
+
+# Returns the correlation between a the search volume of a term, and the price movement of a stock ticker
+# Ex. print(google_search_correlation('Crocs', 'CROX', 180))
+# Ex. print(google_search_correlation('Recession', '^VIX', 180))
+# Ex for S&P 500: print(google_search_correlation('Recession', '^GSPC', 180))
+# Other notable search terms, inflation, unemployment
+def correlation_google_trends(ticker, total_days):
+    search_term = General.get_brand(name)
+    start_date = dt.datetime.now() - dt.timedelta(days=total_days)
+    end_date = dt.datetime.now()
+
+def correlation_insider(ticker, total_days):
+
+def correlation_estimates(ticker, total_days):
+
+def correlation_foottraffic(ticker, total_days):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # Get Ticker Data
+    ticker_df = pdr.get_data_yahoo(ticker, start_date, end_date)
+
+    # Get Search Trebds data
+    search_df = Google.google_trends_dataframe(search_term, total_days)
+
+    # Creating Dataframes for each source
+    masterDF = pd.DataFrame()
+    masterDF = masterDF.append(ticker_df)
+    masterDF2 = pd.DataFrame()
+    masterDF2 = masterDF2.append(search_df)
+    pd.to_numeric(masterDF2.index)
+
+    # Merging Data from both Sources and Removing Nan Values/Uncessary Columns
+    mergedDF = pd.merge(masterDF, masterDF2, left_on= masterDF.index, right_on= masterDF2.index, how = 'outer')
+    mergedDF = mergedDF.dropna()
+    del mergedDF['Open']
+    del mergedDF['High']
+    del mergedDF['Low']
+    del mergedDF['isPartial']
+    del mergedDF['Close']
+    del mergedDF['Volume']
+    mergedDF['Adj Close'] = mergedDF['Adj Close'].pct_change()
+    mergedDF[search_term] = mergedDF[search_term].pct_change()
+    mergedDF = mergedDF.drop(0)
+    mergedDF = mergedDF.drop(len(mergedDF))
+
+    # Calculating the correlation between the search term and ticker
+    corr_matrix= mergedDF.corr()
+    #return(corr_matrix['Adj Close'][search_term])
+    print(corr_matrix['Adj Close'][search_term])
+
+    print(weighted_corr(mergedDF['Adj Close'],mergedDF[search_term],weights(len(mergedDF['Adj Close']))))
+
+#google_search_correlation('Recession', 'VIEW', 90)
+
+
+
+def get_earnings_projection_vector(ticker):
+
