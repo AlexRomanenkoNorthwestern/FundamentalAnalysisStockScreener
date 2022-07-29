@@ -50,21 +50,59 @@ def weighted_corr(x,y,w):
 
 
 
-
-# Returns the correlation between a the search volume of a term, and the price movement of a stock ticker
-# Ex. print(google_search_correlation('Crocs', 'CROX', 180))
-# Ex. print(google_search_correlation('Recession', '^VIX', 180))
-# Ex for S&P 500: print(google_search_correlation('Recession', '^GSPC', 180))
-# Other notable search terms, inflation, unemployment
+# Correlation between google trends and historic eps
+# x = google_trends, y = eps
 def correlation_google_trends(ticker, total_days):
     search_term = General.get_brand(name)
     start_date = dt.datetime.now() - dt.timedelta(days=total_days)
     end_date = dt.datetime.now()
 
+    # Get Earnings data list
+    html = Yahoo.make_yahoo_request(ticker)
+    y_historic = get_historic_eps(html, ticker)[0:3]
+
+    # Get Search Trends data
+    one_quarter_ago = datetime.strptime(Yahoo.get_earnings_date(ticker), "%Y-%m-%d")
+    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
+    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
+    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
+    x = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago,
+         four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago]
+
+    num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
+    search_df = Google.google_trends_dataframe(search_term, num_days)
+
+
+    avg_eps = sum(y_historic[0:3])/4
+
+
+
+    type_eps = ["Expected", "Expected", "Expected", "Expected", "Expected", "Actual", "Actual", "Actual", "Actual", "Actual"]
+    d1 = {"Time": x, "EPS": y_estimated, "Type": type_eps}
+    df = pd.DataFrame(d1)
+    fig = px.bar(df, x = "Time", y = "EPS", color = "Type", barmode = "group")
+
+    # Google Line Chart
+    date_list = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
+    df_google = Google.google_trends_dataframe(ticker, num_days).iloc[:,0] * avg_eps/50
+    print(df_google)
+
+    avg_one_quarter_ago = df_google[(df_google.index <= one_quarter_ago) & (df_google.index > two_quarters_ago)].mean()
+    avg_two_quarters_ago = df_google[(df_google.index <= two_quarters_ago) & (df_google.index > three_quarters_ago)].mean()
+    avg_three_quarters_ago = df_google[(df_google.index <= three_quarters_ago) & (df_google.index > four_quarters_ago)].mean()
+    avg_four_quarters_ago = df_google[(df_google.index <= four_quarters_ago) & (df_google.index > four_quarters_ago + relativedelta(months=-3))].mean()
+    avg_next_quarter = df_google[(df_google.index <= next_quarter) & (df_google.index > one_quarter_ago)].mean()
+
+    search_list = [avg_four_quarters_ago, avg_three_quarters_ago, avg_two_quarters_ago, avg_one_quarter_ago, avg_next_quarter]
+
+
+# Correlation between insider activity and historic eps
 def correlation_insider(ticker, total_days):
 
+# Correlation between insider activity and historic eps
 def correlation_estimates(ticker, total_days):
 
+# Correlation between footraffic and historic eps
 def correlation_foottraffic(ticker, total_days):
 
 
@@ -86,8 +124,7 @@ def correlation_foottraffic(ticker, total_days):
     # Get Ticker Data
     ticker_df = pdr.get_data_yahoo(ticker, start_date, end_date)
 
-    # Get Search Trebds data
-    search_df = Google.google_trends_dataframe(search_term, total_days)
+
 
     # Creating Dataframes for each source
     masterDF = pd.DataFrame()
@@ -117,7 +154,7 @@ def correlation_foottraffic(ticker, total_days):
 
     print(weighted_corr(mergedDF['Adj Close'],mergedDF[search_term],weights(len(mergedDF['Adj Close']))))
 
-#google_search_correlation('Recession', 'VIEW', 90)
+#print(google_search_correlation('Recession', 'VIEW', 90))
 
 
 
