@@ -70,7 +70,7 @@ def get_earnings_date(ticker):
     date = General.get_finnhub_client().company_earnings(ticker)[0]["period"]
     return(date)
 
-def update_bar_eps1(ticker):
+def update_bar_eps(ticker):
     html = make_yahoo_request(ticker)
 
     one_quarter_ago = datetime.strptime(get_earnings_date(ticker), "%Y-%m-%d")
@@ -82,10 +82,7 @@ def update_bar_eps1(ticker):
          four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
 
     num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
-    print(num_days)
-    #x = ["One Year","Three Quarters","Two Quarters","Last Quarter","Next Quarter", 
-         #"One Year","Three Quarters","Two Quarters","Last Quarter","Next Quarter"]
-    
+   
     y_historic = get_historic_eps(html, ticker)
     avg_eps = sum(y_historic[0:3])/4
     y_estimated = get_historic_estimated_eps(html)
@@ -102,7 +99,6 @@ def update_bar_eps1(ticker):
     # Google Line Chart
     date_list = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
     df_google = Google.google_trends_dataframe(ticker, num_days).iloc[:,0] * avg_eps/50
-    print(df_google)
 
     avg_one_quarter_ago = df_google[(df_google.index <= one_quarter_ago) & (df_google.index > two_quarters_ago)].mean()
     avg_two_quarters_ago = df_google[(df_google.index <= two_quarters_ago) & (df_google.index > three_quarters_ago)].mean()
@@ -112,15 +108,10 @@ def update_bar_eps1(ticker):
 
     search_list = [avg_four_quarters_ago, avg_three_quarters_ago, avg_two_quarters_ago, avg_one_quarter_ago, avg_next_quarter]
 
-    print(date_list)
-    print(search_list)
-
     fig.add_trace(go.Scatter(x = date_list, y = search_list,
                     mode='lines+markers',
                     name='Google Trends'))
-    #fig.add_trace(
-       # go.Scatter(name = "Google Trends", x = ["One Year","Three Quarters","Two Quarters","Last Quarter","Next Quarter"], y = [1,1.5,1.25,2, 3])
-        #)
+
     fig.update_layout(margin=dict(l=20, r=20, t=30, b=20),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -128,3 +119,17 @@ def update_bar_eps1(ticker):
     fig.update_yaxes(title = "EPS")
     fig.update_xaxes(tickangle = 0)
     return(fig)
+    
+def update_stk_chart(ticker):
+    stk_df = yf.Ticker(ticker).history(period ="2y", actions = False)
+    fig_stk = go.Figure(data=[go.Candlestick(x=stk_df.index,
+                                             open = stk_df['Open'],
+                                             high = stk_df['High'],
+                                             low = stk_df['Low'],
+                                             close = stk_df['Close'])])
+
+    fig_stk.update_layout(margin=dict(l=20, r=20, t=30, b=20),
+                          paper_bgcolor='rgba(0,0,0,0)',
+                          plot_bgcolor='rgba(0,0,0,0)',
+                          font_color = 'white')
+    return(fig_stk)
