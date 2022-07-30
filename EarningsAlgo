@@ -1,10 +1,10 @@
 #import Semrush
 #import Finviz
-#import Google
+import Google
 #import FootTraffic
 import Yahoo
 #import Dashboard
-#import General
+import General
 # import social media follower data
 
 import pandas as pd
@@ -12,12 +12,14 @@ import datetime as dt
 from datetime import datetime, timedelta, date, time
 import numpy as np
 import math
+from dateutil.relativedelta import relativedelta
+import finnhub
 
 
 # Weights sum to 1
 def weights (length):
     most_recent_weighting = .1
-    weight_factor = .95
+    weight_factor = .9
     vector = []
     for i in range(1,5):
         vector.append(most_recent_weighting)
@@ -49,6 +51,9 @@ def weighted_corr(x,y,w):
     return(cov(x,y,w)/np.sqrt(cov(x,x,w)*cov(y,y,w)))
 
 
+
+
+
 # Correlation between earnings estimates and historic eps
 def correlation_estimates(ticker):
     yahoo_request = Yahoo.make_yahoo_request(ticker)
@@ -58,4 +63,103 @@ def correlation_estimates(ticker):
     print(historic_actual_eps)
     correlation = weighted_corr(historic_actual_eps, historic_estimated_eps, weights(4))
     return correlation
+
+
+# Correlation between google trends and historic eps
+# x = google_trends, y = eps
+def correlation_google_trends(ticker):
+    search_term = General.get_brand_name(ticker)
+
+    # Get Earnings data list
+    html = Yahoo.make_yahoo_request(ticker)
+    historic_actual_eps = Yahoo.get_historic_eps(html, ticker)[0:4]
+    avg_eps = sum(historic_actual_eps)/4
+
+    # Get Search Trends data
+    one_quarter_ago = datetime.strptime(Yahoo.get_earnings_date(ticker), "%Y-%m-%d")
+    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
+    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
+    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
+    num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
+    df_google = Google.google_trends_dataframe(search_term, num_days).iloc[:,0] * avg_eps/50
+    avg_one_quarter_ago = df_google[(df_google.index <= one_quarter_ago) & (df_google.index > two_quarters_ago)].mean()
+    avg_two_quarters_ago = df_google[(df_google.index <= two_quarters_ago) & (df_google.index > three_quarters_ago)].mean()
+    avg_three_quarters_ago = df_google[(df_google.index <= three_quarters_ago) & (df_google.index > four_quarters_ago)].mean()
+    avg_four_quarters_ago = df_google[(df_google.index <= four_quarters_ago) & (df_google.index > four_quarters_ago + relativedelta(months=-3))].mean()
+    search_list = [avg_four_quarters_ago, avg_three_quarters_ago, avg_two_quarters_ago, avg_one_quarter_ago]
+
+    print(historic_actual_eps)
+    print(search_list)
+    # correlation
+    correlation = weighted_corr(historic_actual_eps, search_list, weights(4))
+    return correlation
+
+def projection_google(ticker):
+    html = Yahoo.make_yahoo_request(ticker)
+    historic_actual_eps = Yahoo.get_historic_eps(html, ticker)[0:4]
+    avg_eps = sum(historic_actual_eps)/4
+    one_quarter_ago = datetime.strptime(General.get_earnings_date(ticker), "%Y-%m-%d")
+    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
+    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
+    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
+    next_quarter = one_quarter_ago + relativedelta(months=3)
+    x = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter,
+         four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
+    num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
+    df_google = Google.google_trends_dataframe(ticker, num_days).iloc[:,0] * avg_eps/50
+    avg_next_quarter = df_google[(df_google.index <= next_quarter) & (df_google.index > one_quarter_ago)].mean()
+    projection = avg_next_quarter
+    return(projection)
+
+def get_insider_data(ticker):
+    finnhub_client = General.get_finnhub_client()
+    one_quarter_ago = datetime.strptime(General.get_earnings_date(ticker), "%Y-%m-%d")
+    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
+    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
+    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
+
+    result = finnhub_client.stock_insider_transactions(ticker, start_date, end_date)["data"]
+
+
+    total = 0
+    for i in result:
+        total += int(result["change"])
+    return(total)
+
+def correlation_insider(ticker):
+    return(0)
+
+def projection_insider(ticker):
+    return(0)
+
+
+
+# Correlation between footraffic and historic eps
+def correlation_foottraffic(ticker):
+    return(0)
+
+# Correlation between insider trends and historic eps
+def correlation_insider(ticker, total_days):
+    return(0)
+
+
+def eps_projection(ticker):
+    #Analysts
+    proj_analyst = Yahoo.get_estimated_future_eps(Yahoo.make_yahoo_request(ticker))
+    corr_analyst = correlation_estimates(ticker)
+
+    #Google Search
+    proj_search = projection_google(ticker)
+    corr_search = correlation_google_trends(ticker)
+
+    #Foot Traffic
+    proj_foot =0
+    corr_foot = 0
+
+    #Insider Trends
+    proj_insider = 0
+    corr_insider = 0
+
+    projection = proj_analyst*corr_analyst + proj_search*corr_search
+    return (0)
 
