@@ -1,3 +1,10 @@
+import Finviz
+import Google
+import Semrush
+import Social
+import Yahoo
+import Social
+
 import dash
 from dash import dcc
 from dash import html
@@ -5,31 +12,33 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 import yfinance as yf
-from dash_extensions import Lottie       # pip install dash-extensions
-import dash_bootstrap_components as dbc  # pip install dash-bootstrap-components
+from dash_extensions import Lottie       
+import dash_bootstrap_components as dbc  
 from dash_bootstrap_components._components.Container import Container
-from datetime import date
+from datetime import date, datetime
+import matplotlib.pyplot as plt
+import numpy as np
 import calendar
-from wordcloud import WordCloud          # pip install wordcloud
+from wordcloud import WordCloud
+import plotly.graph_objects as go
 
-
-
+print("HI")
 options = dict(loop=True, autoplay=True, rendererSettings=dict(preserveAspectRatio='xMidYMid slice'))
 # Import App data from csv sheets **************************************
-df_cnt = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Connections.csv")
+df_cnt = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Connections.csv", nrows=10)
 df_cnt["Connected On"] = pd.to_datetime(df_cnt["Connected On"])
 df_cnt["month"] = df_cnt["Connected On"].dt.month
 df_cnt['month'] = df_cnt['month'].apply(lambda x: calendar.month_abbr[x])
-
-df_invite = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Invitations.csv")
+print("HI")
+df_invite = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Invitations.csv",  nrows=10)
 df_invite["Sent At"] = pd.to_datetime(df_invite["Sent At"])
-
-df_react = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Reactions.csv")
+print("HI")
+df_react = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/Reactions.csv", nrows=10)
 df_react["Date"] = pd.to_datetime(df_react["Date"])
-
-df_msg = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/messages.csv")
+print("HI")
+df_msg = pd.read_csv("https://raw.githubusercontent.com/Coding-with-Adam/Dash-by-Plotly/master/Analytic_Web_Apps/Linkedin_Analysis/messages.csv",  nrows=10)
 df_msg["DATE"] = pd.to_datetime(df_msg["DATE"])
-
+print("HI")
 
 
 
@@ -123,10 +132,20 @@ app.layout = dbc.Container([
     html.Br(),
     html.Br(),
     dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                    dbc.CardBody([
+                        html.H4('Company Description'),
+                        html.H6(id='description', children="Enter a stock ticker")
+                        ])
+                ], style={'borderRadius': '4px'}, color="dark")], width = 12),
+    ]),
+    html.Br(),
+    dbc.Row([
         dbc.Col([table], width = 6),
         dbc.Col([dbc.Card([
             dbc.CardBody([
-                dcc.Graph(id='line-chart1', figure={}, config={'displayModeBar': False}),
+                dcc.Graph(id='stock-chart', figure={}, config={'displayModeBar': False}),
                 ])
             ], style={'height': '59.6vh', 'borderRadius': '4px'}, color="dark")], width = 6),
     ]),
@@ -199,14 +218,15 @@ app.layout = dbc.Container([
             ], style={'borderRadius': '4px'}, color="dark"),
         ], width=6),
     ],className='mb-2'),
+    html.Br(),
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    dcc.Graph(id='TBD', figure={}),
+                    dcc.Graph(id='tweet-chart', figure={}),
                 ])
             ], style={'borderRadius': '4px'}, color="dark"),
-        ], width=3),
+        ], width=4),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
@@ -220,7 +240,7 @@ app.layout = dbc.Container([
                     dcc.Graph(id='wordcloud', figure={}, config={'displayModeBar': False}),
                 ])
             ], style={'borderRadius': '4px'}, color="dark"),
-        ], width=4),
+        ], width=3),
     ],className='mb-2'),
 ], fluid=True)
 
@@ -283,6 +303,7 @@ def update_table(ticker):
 
 # Updating the 6 number cards and table ******************************************
 @app.callback(
+    Output('description','children'),
     Output('website','children'),
     Output('google','children'),
     Output('foot','children'),
@@ -290,6 +311,9 @@ def update_table(ticker):
     Output('message','children'),
     Output('analyst','children'),
     Output('table1','children'),
+    Output('stock-chart','figure'),
+    Output('line-chart','figure'),
+    Output('tweet-chart','figure'),
     Output('search_button', 'n_clicks'),
     Input('my-date-picker-start','date'),
     Input('my-date-picker-end','date'),
@@ -306,6 +330,8 @@ def update_small_cards(start_date, end_date, ticker, clicks):
     
     if (clicks>0):
         # Connections
+        desc = yf.Ticker(ticker).info['longBusinessSummary']
+
         dff_c = df_cnt.copy()
 
         dff_c = dff_c[(dff_c['Connected On']>=start_date) & (dff_c['Connected On']<=end_date)]
@@ -313,17 +339,17 @@ def update_small_cards(start_date, end_date, ticker, clicks):
         compns_num = ticker
 
         # Website Visits
-        visits = get_website_visits(ticker)
+        visits = Semrush.get_website_visits(ticker)
 
         # Google Trends
-        g_df = google_trends_dataframe(ticker, 365)
-        g_trends = relative_search_volume_google(g_df, 365)
+        g_df = Google.google_trends_dataframe(ticker, 365)
+        g_trends = Google.relative_search_volume_google(g_df, 365)
 
         # Net Insider Transactions
-        net_insider = net_insider_transactions(ticker)
+        net_insider = Finviz.net_insider_transactions(ticker)
 
         # Twitter Volume
-        twitter = relative_search_volume_twitter(ticker)
+        twitter = Social.relative_search_volume_twitter(ticker)
 
         # Invitations
         dff_i = df_invite.copy()
@@ -336,18 +362,26 @@ def update_small_cards(start_date, end_date, ticker, clicks):
         dff_r = dff_r[(dff_r['Date']>=start_date) & (dff_r['Date']<=end_date)]
         reactns_num = len(dff_r)
 
+        # stock chart
+        fig_stk = Yahoo.update_stk_chart(ticker)
+
         table_info = update_table(ticker)
+
+
+        fig_eps = Yahoo.update_bar_eps(ticker)
       
         
+        fig_tweets = Social.tweets_volume_figure(ticker, 30)
+        
         clicks = 0
-        return visits, g_trends, compns_num, net_insider, twitter, reactns_num, table_info, clicks
+        return desc, visits, g_trends, compns_num, net_insider, twitter, reactns_num, table_info, fig_stk, fig_eps, fig_tweets, clicks
 
 
 
 
 # Line Chart ***********************************************************
 @app.callback(
-    Output('line-chart','figure'),
+    Output('line-chart1','figure'),
     Input('my-date-picker-start','date'),
     Input('my-date-picker-end','date'),
     #Input('search_bar','value'),
@@ -379,13 +413,13 @@ def update_line(start_date, end_date):
     return fig_line
 
 # Line Chart ***********************************************************
-@app.callback(
+#@app.callback(
     Output('line-chart1','figure'),
     Input('my-date-picker-start','date'),
     Input('my-date-picker-end','date'),
     #Input('search_bar','value'),
-)
-def update_line1(start_date, end_date):
+#)
+#def update_line1(start_date, end_date):
     #df = google_trends_dataframe(ticker, 180)
     #return google_trends_graph(df)
     dff = df_cnt.copy()
@@ -419,6 +453,7 @@ def update_line1(start_date, end_date):
     Input('my-date-picker-end','date'),
 )
 def update_bar(start_date, end_date):
+
     dff = df_cnt.copy()
     dff = dff[(dff['Connected On']>=start_date) & (dff['Connected On']<=end_date)]
 
