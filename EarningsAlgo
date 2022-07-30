@@ -1,10 +1,10 @@
-import Semrush
-import Finviz
-import Google
-import FootTraffic
+#import Semrush
+#import Finviz
+#import Google
+#import FootTraffic
 import Yahoo
-import Dashboard
-import General
+#import Dashboard
+#import General
 # import social media follower data
 
 import pandas as pd
@@ -19,9 +19,9 @@ def weights (length):
     most_recent_weighting = .1
     weight_factor = .95
     vector = []
-    for i in np.linspace(1,length, num = length):
+    for i in range(1,5):
         vector.append(most_recent_weighting)
-        most_recent_weighting = (most_recent_weighting)*weight_factor
+        most_recent_weighting *= weight_factor
     total = sum(vector)
     array = np.array(vector)
     vector = array * 1/total #vector weights sum to 1
@@ -49,114 +49,13 @@ def weighted_corr(x,y,w):
     return(cov(x,y,w)/np.sqrt(cov(x,x,w)*cov(y,y,w)))
 
 
-
-# Correlation between google trends and historic eps
-# x = google_trends, y = eps
-def correlation_google_trends(ticker, total_days):
-    search_term = General.get_brand(name)
-    start_date = dt.datetime.now() - dt.timedelta(days=total_days)
-    end_date = dt.datetime.now()
-
-    # Get Earnings data list
-    html = Yahoo.make_yahoo_request(ticker)
-    y_historic = get_historic_eps(html, ticker)[0:3]
-
-    # Get Search Trends data
-    one_quarter_ago = datetime.strptime(Yahoo.get_earnings_date(ticker), "%Y-%m-%d")
-    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
-    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
-    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
-    x = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago,
-         four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago]
-
-    num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
-    search_df = Google.google_trends_dataframe(search_term, num_days)
-
-
-    avg_eps = sum(y_historic[0:3])/4
-
-
-
-    type_eps = ["Expected", "Expected", "Expected", "Expected", "Expected", "Actual", "Actual", "Actual", "Actual", "Actual"]
-    d1 = {"Time": x, "EPS": y_estimated, "Type": type_eps}
-    df = pd.DataFrame(d1)
-    fig = px.bar(df, x = "Time", y = "EPS", color = "Type", barmode = "group")
-
-    # Google Line Chart
-    date_list = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
-    df_google = Google.google_trends_dataframe(ticker, num_days).iloc[:,0] * avg_eps/50
-    print(df_google)
-
-    avg_one_quarter_ago = df_google[(df_google.index <= one_quarter_ago) & (df_google.index > two_quarters_ago)].mean()
-    avg_two_quarters_ago = df_google[(df_google.index <= two_quarters_ago) & (df_google.index > three_quarters_ago)].mean()
-    avg_three_quarters_ago = df_google[(df_google.index <= three_quarters_ago) & (df_google.index > four_quarters_ago)].mean()
-    avg_four_quarters_ago = df_google[(df_google.index <= four_quarters_ago) & (df_google.index > four_quarters_ago + relativedelta(months=-3))].mean()
-    avg_next_quarter = df_google[(df_google.index <= next_quarter) & (df_google.index > one_quarter_ago)].mean()
-
-    search_list = [avg_four_quarters_ago, avg_three_quarters_ago, avg_two_quarters_ago, avg_one_quarter_ago, avg_next_quarter]
-
-
-# Correlation between insider activity and historic eps
-def correlation_insider(ticker, total_days):
-
-# Correlation between insider activity and historic eps
-def correlation_estimates(ticker, total_days):
-
-# Correlation between footraffic and historic eps
-def correlation_foottraffic(ticker, total_days):
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # Get Ticker Data
-    ticker_df = pdr.get_data_yahoo(ticker, start_date, end_date)
-
-
-
-    # Creating Dataframes for each source
-    masterDF = pd.DataFrame()
-    masterDF = masterDF.append(ticker_df)
-    masterDF2 = pd.DataFrame()
-    masterDF2 = masterDF2.append(search_df)
-    pd.to_numeric(masterDF2.index)
-
-    # Merging Data from both Sources and Removing Nan Values/Uncessary Columns
-    mergedDF = pd.merge(masterDF, masterDF2, left_on= masterDF.index, right_on= masterDF2.index, how = 'outer')
-    mergedDF = mergedDF.dropna()
-    del mergedDF['Open']
-    del mergedDF['High']
-    del mergedDF['Low']
-    del mergedDF['isPartial']
-    del mergedDF['Close']
-    del mergedDF['Volume']
-    mergedDF['Adj Close'] = mergedDF['Adj Close'].pct_change()
-    mergedDF[search_term] = mergedDF[search_term].pct_change()
-    mergedDF = mergedDF.drop(0)
-    mergedDF = mergedDF.drop(len(mergedDF))
-
-    # Calculating the correlation between the search term and ticker
-    corr_matrix= mergedDF.corr()
-    #return(corr_matrix['Adj Close'][search_term])
-    print(corr_matrix['Adj Close'][search_term])
-
-    print(weighted_corr(mergedDF['Adj Close'],mergedDF[search_term],weights(len(mergedDF['Adj Close']))))
-
-#print(google_search_correlation('Recession', 'VIEW', 90))
-
-
-
-def get_earnings_projection_vector(ticker):
+# Correlation between earnings estimates and historic eps
+def correlation_estimates(ticker):
+    yahoo_request = Yahoo.make_yahoo_request(ticker)
+    historic_actual_eps = (Yahoo.get_historic_eps(yahoo_request, ticker))[0:4]
+    historic_estimated_eps = Yahoo.get_historic_estimated_eps(yahoo_request)[0:4]
+    print(historic_estimated_eps)
+    print(historic_actual_eps)
+    correlation = weighted_corr(historic_actual_eps, historic_estimated_eps, weights(4))
+    return correlation
 
