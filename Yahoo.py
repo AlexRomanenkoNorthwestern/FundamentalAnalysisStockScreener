@@ -1,6 +1,6 @@
-from audioop import avg
 import Google
 import General
+import EarningsAlgo
 
 # Import Libraries
 from urllib.request import urlopen, Request
@@ -12,7 +12,7 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta, date, time
 from dateutil.relativedelta import relativedelta
-    
+
 def make_yahoo_request(ticker):
     yahoo_url = 'https://finance.yahoo.com/quote/' + ticker + '/analysis?p=' + ticker
     req = Request(url=yahoo_url,headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0'}) 
@@ -21,8 +21,8 @@ def make_yahoo_request(ticker):
     return(html)
 
 def get_algo_estimated_eps(ticker):
-
-    return(3)
+    estimate = EarningsAlgo.get_algo_eps_projection(ticker)
+    return(estimate)
 
 # Last 4 Quarters
 # index zero is most recent
@@ -84,7 +84,7 @@ def update_bar_eps(ticker):
     num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
    
     y_historic = get_historic_eps(html, ticker)
-    avg_eps = sum(y_historic[0:3])/4
+    avg_eps = sum(y_historic[0:4])/4
     y_estimated = get_historic_estimated_eps(html)
     y_estimated.append(y_historic[0])
     y_estimated.append(y_historic[1])
@@ -98,7 +98,8 @@ def update_bar_eps(ticker):
 
     # Google Line Chart
     date_list = [four_quarters_ago, three_quarters_ago, two_quarters_ago, one_quarter_ago, next_quarter]
-    df_google = Google.google_trends_dataframe(ticker, num_days).iloc[:,0] * avg_eps/50
+    google_data = Google.google_trends_dataframe(ticker, num_days).iloc[:,0]
+    df_google = google_data * avg_eps/google_data[(google_data.index <= one_quarter_ago) & (google_data.index > four_quarters_ago + relativedelta(months=-3))].mean()
 
     avg_one_quarter_ago = df_google[(df_google.index <= one_quarter_ago) & (df_google.index > two_quarters_ago)].mean()
     avg_two_quarters_ago = df_google[(df_google.index <= two_quarters_ago) & (df_google.index > three_quarters_ago)].mean()
