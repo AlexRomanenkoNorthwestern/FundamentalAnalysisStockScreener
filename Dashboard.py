@@ -4,6 +4,7 @@ import Semrush
 import Social
 import Yahoo
 import Social
+import EarningsAlgo
 
 import dash
 from dash import dcc
@@ -21,6 +22,7 @@ import numpy as np
 import calendar
 from wordcloud import WordCloud
 import plotly.graph_objects as go
+
 
 print("HI")
 options = dict(loop=True, autoplay=True, rendererSettings=dict(preserveAspectRatio='xMidYMid slice'))
@@ -213,7 +215,7 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    dcc.Graph(id='bar-chart', figure={}, config={'displayModeBar': False}),
+                    dcc.Graph(id='google-chart', figure={}, config={'displayModeBar': False}),
                 ])
             ], style={'borderRadius': '4px'}, color="dark"),
         ], width=6),
@@ -313,7 +315,9 @@ def update_table(ticker):
     Output('table1','children'),
     Output('stock-chart','figure'),
     Output('line-chart','figure'),
+    Output('google-chart','figure'),
     Output('tweet-chart','figure'),
+    Output('pie-chart','figure'),
     Output('search_button', 'n_clicks'),
     Input('my-date-picker-start','date'),
     Input('my-date-picker-end','date'),
@@ -369,136 +373,17 @@ def update_small_cards(start_date, end_date, ticker, clicks):
 
 
         fig_eps = Yahoo.update_bar_eps(ticker)
-      
         
-        fig_tweets = Social.tweets_volume_figure(ticker, 30)
+        fig_google = Google.google_trends_graph(Google.google_trends_dataframe(ticker, 730))
         
+        fig_tweets = Social.tweets_volume_figure(ticker, 5)
+        
+        fig_insider = Finviz.insider_chart(ticker)
+
         clicks = 0
-        return desc, visits, g_trends, compns_num, net_insider, twitter, reactns_num, table_info, fig_stk, fig_eps, fig_tweets, clicks
+        return desc, visits, g_trends, compns_num, net_insider, twitter, reactns_num, table_info, fig_stk, fig_eps, fig_google, fig_tweets, fig_insider, clicks
 
-
-
-
-# Line Chart ***********************************************************
-@app.callback(
-    Output('line-chart1','figure'),
-    Input('my-date-picker-start','date'),
-    Input('my-date-picker-end','date'),
-    #Input('search_bar','value'),
-)
-def update_line(start_date, end_date):
-    #df = google_trends_dataframe(ticker, 180)
-    #return google_trends_graph(df)
-    dff = df_cnt.copy()
-    dff = dff[(dff['Connected On']>=start_date) & (dff['Connected On']<=end_date)]
-    dff = dff[["month"]].value_counts()
-    dff = dff.to_frame()
-    dff.reset_index(inplace=True)
-    dff.rename(columns={0: 'Total connections'}, inplace=True)
-
-    fig_line = px.line(dff, x='month', y='Total connections', template='ggplot2',
-                  title="Total Connections by Month Name")
-    fig_line.update_traces(mode="lines+markers", fill='tozeroy',line={'color':'blue'})
-    fig_line.update_layout(
-        margin=dict(l=20, r=20, t=30, b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font_color = 'white')
-    fig_line.update_xaxes(showgrid=False)
-    fig_line.update_yaxes(showgrid=False)
-    fig_line.update_xaxes(showline=False)
-    fig_line.update_yaxes(showline=False)
-    fig_line.update_xaxes(zeroline=False)
-    fig_line.update_yaxes(zeroline=False)
-    return fig_line
-
-# Line Chart ***********************************************************
-#@app.callback(
-    Output('line-chart1','figure'),
-    Input('my-date-picker-start','date'),
-    Input('my-date-picker-end','date'),
-    #Input('search_bar','value'),
-#)
-#def update_line1(start_date, end_date):
-    #df = google_trends_dataframe(ticker, 180)
-    #return google_trends_graph(df)
-    dff = df_cnt.copy()
-    dff = dff[(dff['Connected On']>=start_date) & (dff['Connected On']<=end_date)]
-    dff = dff[["month"]].value_counts()
-    dff = dff.to_frame()
-    dff.reset_index(inplace=True)
-    dff.rename(columns={0: 'Total connections'}, inplace=True)
-
-    fig_line = px.line(dff, x='month', y='Total connections', template='ggplot2',
-                  title="Total Connections by Month Name")
-    fig_line.update_traces(mode="lines+markers", fill='tozeroy',line={'color':'blue'})
-    fig_line.update_layout(
-        margin=dict(l=20, r=20, t=30, b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font_color = 'white')
-    fig_line.update_xaxes(showgrid=False)
-    fig_line.update_yaxes(showgrid=False)
-    fig_line.update_xaxes(showline=False)
-    fig_line.update_yaxes(showline=False)
-    fig_line.update_xaxes(zeroline=False)
-    fig_line.update_yaxes(zeroline=False)
-    return fig_line
-
-
-# Bar Chart ************************************************************
-@app.callback(
-    Output('bar-chart','figure'),
-    Input('my-date-picker-start','date'),
-    Input('my-date-picker-end','date'),
-)
-def update_bar(start_date, end_date):
-
-    dff = df_cnt.copy()
-    dff = dff[(dff['Connected On']>=start_date) & (dff['Connected On']<=end_date)]
-
-    dff = dff[["Company"]].value_counts().head(6)
-    dff = dff.to_frame()
-    dff.reset_index(inplace=True)
-    dff.rename(columns={0:'Total connections'}, inplace=True)
-    # print(dff_comp)
-    fig_bar = px.bar(dff, x='Total connections', y='Company', template='ggplot2',
-                      orientation='h', title="Total Connections by Company")
-    fig_bar.update_yaxes(tickangle=45)
-    fig_bar.update_layout(margin=dict(l=20, r=20, t=30, b=20),
-                          paper_bgcolor='rgba(0,0,0,0)',
-                          plot_bgcolor='rgba(0,0,0,0)',
-                          font_color = 'white')
-    fig_bar.update_traces(marker_color='blue')
-    fig_bar.update_xaxes(showgrid=False)
-    fig_bar.update_yaxes(showgrid=False)
-    fig_bar.update_xaxes(showline=False)
-    fig_bar.update_yaxes(showline=False)
-    fig_bar.update_xaxes(zeroline=False)
-    fig_bar.update_yaxes(zeroline=False)
-
-    return fig_bar
-
-
-# Pie Chart ************************************************************
-@app.callback(
-    Output('pie-chart','figure'),
-    Input('my-date-picker-start','date'),
-    Input('my-date-picker-end','date'),
-)
-def update_pie(start_date, end_date):
-    dff = df_msg.copy()
-    dff = dff[(dff['DATE']>=start_date) & (dff['DATE']<=end_date)]
-    msg_sent = len(dff[dff['FROM']=='Adam Schroeder'])
-    msg_rcvd = len(dff[dff['FROM'] != 'Adam Schroeder'])
-    fig_pie = px.pie(names=['Sent','Received'], values=[msg_sent, msg_rcvd],
-                     template='ggplot2', title="Messages Sent & Received"
-                     )
-    fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
-    fig_pie.update_traces(marker_colors=['red','blue'])
-
-    return fig_pie
-
+    
 
 # Word Cloud ************************************************************
 @app.callback(
@@ -536,4 +421,4 @@ def update_pie(start_date, end_date):
 
 
 if __name__=='__main__':
-    app.run_server(debug=False, port=8004)
+    app.run_server(debug=False, po
