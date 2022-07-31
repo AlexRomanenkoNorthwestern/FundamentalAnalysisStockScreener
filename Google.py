@@ -9,6 +9,7 @@ pytrends = TrendReq()
 from datetime import datetime, timedelta, date, time
 import plotly.graph_objects as go
 import math
+import numpy as np
 
 
 # Returns a Dataframe for google search trends of a given search term over a period of time
@@ -32,10 +33,19 @@ def google_trends_dataframe(ticker, total_days):
 # Displays a Google Search Trends Graph
 def google_trends_graph(dataframe):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.linspace(1,len(dataframe)), y = dataframe.iloc[:,0],
+    fig.add_trace(go.Scatter(x=dataframe.index, y = dataframe.iloc[:,0],
                     mode='lines+markers',
-                    name='lines+markers'))
-    fig.show()
+                    name='Google Search Volume'))
+    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color = 'white')
+    fig.update_yaxes(title = "Search Volume")
+    fig.update_xaxes(title = "Date")
+    fig.update_xaxes(tickangle = 0)
+    fig.update_xaxes(showgrid = False)
+    return(fig)
+
 
     
 # Returns Relative Google Trends Search Volume for a Search Term
@@ -52,3 +62,4 @@ def relative_search_volume_google (dataframe,total_days):
         return ("+{}%".format(int(result)))
     else:
         return("{}%".format(int(result)))
+
