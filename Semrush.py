@@ -3,12 +3,15 @@ import General
 # Import Libraries
 import time
 from urllib.request import urlopen, Request
-from bs4 import BeautifulSoup, element
+from bs4 import BeautifulSoup
 import numpy as np
 import math
 import finnhub
 
+
+# Returns the average percent change in website vistors each month for the past two months
 def get_website_visits(ticker):
+    time.sleep(1)
     try:
         company_url = General.get_finnhub_client().company_profile2(symbol= ticker)['weburl']
     except:
@@ -30,19 +33,19 @@ def get_website_visits(ticker):
     visit_list = []
     month_list = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     index = 0
-    for i in np.linspace(55,70):
-        if (html.find_all('span')[int(i)].text in month_list):
+    for i in range(55,71):
+        if (html.find_all('span')[i].text in month_list):
             index = i
             break
 
-    visits = html.find_all('span')[int(index+1)].text
+    visits = html.find_all('span')[index+1].text
     visits1 = float([visits[:-1]][0])
-    visits = html.find_all('span')[int(index+3)].text
+    visits = html.find_all('span')[index+1].text
     visits2 = float([visits[:-1]][0])
-    visits = html.find_all('span')[int(index+5)].text
+    visits = html.find_all('span')[index+5].text
     visits3 = float([visits[:-1]][0])
         
-    # Simple Math Exponential Decay/ Growth: Change to more advanced model later
+    # Exponential Growth/Decay
     result = (math.sqrt(visits1/visits3) - 1) *100
     if (result > 0):
         return ("+{}%".format(int(result)))
