@@ -1,10 +1,6 @@
-#import Semrush
-#import Finviz
 import Google
-#import FootTraffic
-#import Dashboard
 import General
-# import social media follower data
+
 
 import pandas as pd
 import datetime as dt
@@ -17,9 +13,11 @@ from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup, element
 from sklearn import linear_model
 from sklearn.model_selection import  train_test_split
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
 
-
-
+# Returns the html for a ticker's yahoo finannce analysis webpage
 def make_yahoo_request(ticker):
     yahoo_url = 'https://finance.yahoo.com/quote/' + ticker + '/analysis?p=' + ticker
     req = Request(url=yahoo_url,headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0'}) 
@@ -27,8 +25,8 @@ def make_yahoo_request(ticker):
     html = BeautifulSoup(response, features="lxml")
     return(html)
 
-# Last 4 Quarters
-# index zero is most recent
+
+# Returns the past four quarters eps 
 def get_historic_eps(html):
     # Read the contents of the file into 'html'
     stock_eps = html.find_all('tr')
@@ -43,14 +41,16 @@ def get_historic_eps(html):
     eps_list.append(float(one_quarter_ago))
     return(eps_list)
 
-# Next quarter Analyst EPS
+
+# Returns next quarter's projected EPS from analysts 
 def get_estimated_future_eps(html):
     # Read the contents of the file into 'html'
     stock_eps = html.find_all('tr')
     current_qtr = stock_eps[2].find_all('td')[1].text
     return(current_qtr)
 
-# Last 4 Quarters
+
+# Returns analysts' projections for the  past four quarters eps in addition to next quarter's projected eps
 def get_historic_estimated_eps(html):
     # Read the contents of the file into 'html'
     stock_eps = html.find_all('tr')
@@ -67,10 +67,8 @@ def get_historic_estimated_eps(html):
     eps_list.append(float(analyst_estimated))
     return(eps_list)
 
-def get_earnings_date(ticker):
-    date = General.get_finnhub_client().company_earnings(ticker)[0]["period"]
-    return(date)
 
+# Weighted Correlation Calculation****************************************
 
 # Weights sum to 1
 def weights (length):
@@ -111,8 +109,6 @@ def weighted_corr(x,y,w):
 def correlation_estimates(ticker, historic_actual_eps):
     yahoo_request = make_yahoo_request(ticker)
     historic_estimated_eps = get_historic_estimated_eps(yahoo_request)[0:4]
-    print(historic_estimated_eps)
-    print(historic_actual_eps)
     correlation = weighted_corr(historic_actual_eps, historic_estimated_eps, weights(4))
     return abs(correlation)
 
@@ -125,7 +121,7 @@ def correlation_google_trends(ticker, historic_actual_eps):
     avg_eps = sum(historic_actual_eps)/4
 
     # Get Search Trends data
-    one_quarter_ago = datetime.strptime(get_earnings_date(ticker), "%Y-%m-%d")
+    one_quarter_ago = datetime.strptime(General.get_earnings_date(ticker), "%Y-%m-%d")
     two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
     three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
     four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
@@ -136,14 +132,13 @@ def correlation_google_trends(ticker, historic_actual_eps):
     avg_three_quarters_ago = df_google[(df_google.index <= three_quarters_ago) & (df_google.index > four_quarters_ago)].mean()
     avg_four_quarters_ago = df_google[(df_google.index <= four_quarters_ago) & (df_google.index > four_quarters_ago + relativedelta(months=-3))].mean()
     search_list = [avg_four_quarters_ago, avg_three_quarters_ago, avg_two_quarters_ago, avg_one_quarter_ago]
-
-    # correlation
     correlation = weighted_corr(historic_actual_eps, search_list, weights(4))
     return abs(correlation)
 
 
+# Projected eps based on google trends 
 def projection_google(ticker, historic_actual_eps):
-    one_quarter_ago = datetime.strptime(get_earnings_date(ticker), "%Y-%m-%d")
+    one_quarter_ago = datetime.strptime(General.get_earnings_date(ticker), "%Y-%m-%d")
     four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
     next_quarter = one_quarter_ago + relativedelta(months=3)
     num_days =  (datetime.now()- (four_quarters_ago + relativedelta(months=-3))).days
@@ -152,6 +147,7 @@ def projection_google(ticker, historic_actual_eps):
     df_google = google_data * avg_eps/google_data[(google_data.index <= one_quarter_ago) & (google_data.index > four_quarters_ago + relativedelta(months=-3))].mean()
     projection = df_google[(df_google.index <= next_quarter) & (df_google.index > one_quarter_ago)].mean()
     return abs(projection)
+
 
 # Finds insider data for the past four quarters and next quarter
 def get_insider_data(ticker):
@@ -187,8 +183,10 @@ def correlation_insider(ticker, historic_actual_eps):
         correlation = float(correlation)
     except:
         return(0)
-    return abs(correlation)
+    return abs(correlation/4)
 
+
+# Projected EPS based on insider transactions
 def projection_insider(ticker, historic_actual_eps):
     data_list = get_insider_data(ticker)
     reg = linear_model.LinearRegression()
@@ -198,13 +196,8 @@ def projection_insider(ticker, historic_actual_eps):
     reg.fit(x_train, y_train)
     return((reg.intercept_ + reg.coef_*data_list[4])[0][0])
 
-# Correlation between footraffic and historic eps
-def correlation_foottraffic(ticker):
-    return(0)
 
-
-
-
+# Algorithim to project future eps
 def get_algo_eps_projection(ticker):
     html = make_yahoo_request(ticker)
     historic_actual_eps = get_historic_eps(html)
@@ -217,10 +210,6 @@ def get_algo_eps_projection(ticker):
     proj_search = float(projection_google(ticker, historic_actual_eps))
     corr_search = float(correlation_google_trends(ticker, historic_actual_eps))
 
-    #Foot Traffic
-    proj_foot =0
-    corr_foot = 0
-
     #Insider Trends
     proj_insider = float(projection_insider(ticker, historic_actual_eps))
     corr_insider = float(correlation_insider(ticker, historic_actual_eps))
@@ -229,5 +218,103 @@ def get_algo_eps_projection(ticker):
     projection = (proj_analyst*corr_analyst + proj_search*corr_search + proj_insider*corr_insider)/(corr_analyst + corr_search + corr_insider)
     return (projection)
 
+# Returns information pertaining to a company's valuation
+def get_company_health(ticker):
+    stock = yf.Ticker(ticker)
+    balance = stock.quarterly_balance_sheet
+    #Market Cap -Assets +Liabillities
+    assets_liabilites = []
 
+    # Outstanding Shares
+    shares_list = General.get_historic_shares(ticker)
+    current_shares = stock.info["sharesOutstanding"]
+
+    # Dates Earnings Filed
+    finnhub_client = General.get_finnhub_client()
+    financials_as_reported = finnhub_client.financials_reported(symbol=ticker, freq='quarterly')
+    one_quarter_ago = datetime.strptime(financials_as_reported["data"][0]["acceptedDate"], "%Y-%m-%d %H:%M:%S")
+    next_quarter = one_quarter_ago + relativedelta(months=3)
+    two_quarters_ago = datetime.strptime(financials_as_reported["data"][1]["acceptedDate"], "%Y-%m-%d %H:%M:%S")
+    three_quarters_ago = datetime.strptime(financials_as_reported["data"][2]["acceptedDate"], "%Y-%m-%d %H:%M:%S")
+    four_quarters_ago = datetime.strptime(financials_as_reported["data"][3]["acceptedDate"], "%Y-%m-%d %H:%M:%S")
+
+    # Initialize Dataframe to store values
+    share_price = stock.history(start = four_quarters_ago, end = datetime.today(), interval = "1d", actions = False)["Close"]
+    df = pd.DataFrame(share_price, columns = ["Close"])
+    income_list = np.linspace(0,0, len(share_price))
+    adj_marketcap_list = np.linspace(0,0, len(share_price))
+    adj_earnings_list = np.linspace(0,0, len(share_price))
+
+    #Get Future EPS Analyst Projection
+    html = make_yahoo_request(ticker)
+    stock_eps = html.find_all('tr')
+    next_qtr = get_algo_eps_projection(ticker)
+    future_qtr = float(stock_eps[2].find_all('td')[2].text)
+    actual_eps = get_historic_eps(html)
+    estimated_eps = get_historic_estimated_eps(html)[0:4]
+    estimated_eps.append(next_qtr)
+    estimated_eps.append(future_qtr)
+    actual_eps.append(next_qtr)
+    actual_eps.append(future_qtr)
+
+    # Inititalize Projections
+    for i in range(4):
+        assets_liabilites.append(balance[balance.columns[3-i]][5] - balance[balance.columns[3-i]][2])
+
+    # Add Values to Dataframe
+    for i in range(len(df)):
+        if (df.index[i] > one_quarter_ago):
+            income_list[i] = round((actual_eps[3] + estimated_eps[4])*shares_list["Shares"][0] ,0)
+            adj_marketcap_list[i] = df["Close"][i]*shares_list["Shares"][0] - assets_liabilites[3] 
+
+        elif (df.index[i] > two_quarters_ago):
+            income_list[i] = round((actual_eps[2] + estimated_eps[3])*shares_list["Shares"][1] ,0)
+            adj_marketcap_list[i] = df["Close"][i]*shares_list["Shares"][1] - assets_liabilites[2] 
+
+        elif (df.index[i] > three_quarters_ago):
+            income_list[i] = round((actual_eps[1] + estimated_eps[2])*shares_list["Shares"][2] ,0)
+            adj_marketcap_list[i] = df["Close"][i]*shares_list["Shares"][2] - assets_liabilites[1] 
+
+        else:
+            income_list[i] = round((actual_eps[0] + estimated_eps[1])*shares_list["Shares"][3] ,0)
+            adj_marketcap_list[i] = df["Close"][i]*shares_list["Shares"][3] - assets_liabilites[0] 
+        adj_earnings_list[i] = adj_marketcap_list[i]/income_list[i]
+ 
+    avg_adjusted_earnings = sum(adj_earnings_list)/len(adj_earnings_list)
+    adj_earnings_list = (adj_earnings_list/avg_adjusted_earnings)*50
+
+    next_quarter_adj_marketcap = df["Close"][len(df)-1]*current_shares - assets_liabilites[3] + round((actual_eps[4])*current_shares ,0)
+    next_earnings_valuation = ((next_quarter_adj_marketcap/(round((actual_eps[4] + estimated_eps[5])*current_shares ,0)))/avg_adjusted_earnings)*50
+
+    return([df.index, adj_earnings_list, next_quarter, next_earnings_valuation, df["Close"][len(df)-1]])
+
+
+# Displays a graph of a company's valuation
+def update_valuation_chart(ticker):
+    value = get_company_health(ticker)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=value[0], y = value[1],
+                    mode='lines+markers',
+                    name='Actual'))
+    
+    x_line = [value[0][len(value[0])-1], value[2]]
+    y_line = [value[1][len(value[0])-1],value[3]]
+    fig.add_trace(go.Scatter(x=x_line, y = y_line,
+                    mode='lines+markers',
+                    name='Projected'))
+
+    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color = 'white')
+    fig.update_yaxes(title = "Relative Valuation")
+    fig.update_xaxes(title = "Date")
+    fig.update_xaxes(tickangle = 0)
+    fig.update_xaxes(showgrid = False)
+    fig.update_layout(title = {
+        'text': "Stock Valuation and Projection",
+        'xanchor': 'center',
+        'x': 0.5})
+    return(fig)
 
