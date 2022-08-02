@@ -3,6 +3,8 @@ This stock screener analyzes correlations between a company’s financial perfor
 
 * In order to use the dashboard, insert your finnhub api key in the General.py file. This Dashboard may not support certain tickers due to lack of API support at times. Your use of ideas, systems, and/or data provided by this dashboard are at your own risk and it is your sole responsibility to evaluate the accuracy, completeness, and usefulness of the information. There can be no gurantee regarding the accuracy of any data contained herein.
 
+* This algorithim may not currently support OTC companies or companies with negative EPS.
+
 
 ![1](https://user-images.githubusercontent.com/99095505/182474407-4e2f2b0e-b115-47dd-8eb8-29545f71aeb1.JPG)
 
