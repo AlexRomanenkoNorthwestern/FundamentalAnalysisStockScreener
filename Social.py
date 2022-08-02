@@ -11,6 +11,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
    
+# Returns reddit message volume over the past month
 def social_volume_reddit(ticker):
     today = datetime.now().strftime("%Y-%m-%d")
     one_month_ago = (datetime.now() + relativedelta(months=-1)).strftime("%Y-%m-%d")
@@ -20,6 +21,8 @@ def social_volume_reddit(ticker):
         total_reddit += (int(df[i]['mention']))
     return(total_reddit)
 
+
+# Returns a dataframe of information relating to tweets about a stock
 def find_tweets(ticker, total_days):
     tweet_list = []
     start_date =  datetime.today().date() - timedelta(days=total_days -1)
@@ -41,18 +44,16 @@ def find_tweets(ticker, total_days):
     tweets_df = pd.DataFrame(tweet_list, columns=['Date', 'User', 'Followers', 'Text', 'Likes', 'Sentiment'])
     return (tweets_df)
 
+
+# Returns the total volume of tweets for a ticker over a period of total_days
 def find_tweets_volume(ticker, total_days):
     start_date =  datetime.today().date() - timedelta(days=total_days -1)
     end_date = datetime.today().date()
     return(len(list(sntwitter.TwitterSearchScraper('${} since:{} until:{}'.format(ticker, start_date, end_date)).get_items())))
-        
-def social_volume_twitter(ticker):
-    days =  (datetime.now()-(datetime.now() + relativedelta(months=-1))).days
-    df = find_tweets_volume(ticker,days)
-    return(len(df))
 
+
+# Returns the relative tweet volume for a ticker of the current week compared to the previous week
 def relative_search_volume_twitter (ticker):
-    return(0)
     two_week_count = find_tweets_volume(ticker,14)
     week_count = find_tweets_volume(ticker, 7)
     second_week_count= two_week_count-week_count
@@ -62,6 +63,8 @@ def relative_search_volume_twitter (ticker):
     else:
         return("{}%".format(int(result)))
 
+
+# Displays a tweet volume graph
 def tweets_volume_figure(ticker, total_days):
     start_date =  datetime.today().date() - timedelta(days=total_days -1)
     end_date = datetime.today().date()
@@ -98,5 +101,8 @@ def tweets_volume_figure(ticker, total_days):
         plot_bgcolor='rgba(0,0,0,0)',
         font_color = 'white')
     fig.update_xaxes(tickangle = 0)
+    fig.update_layout(title = {
+        'text': "Tweet Volume",
+        'xanchor': 'center',
+        'x': 0.5})
     return(fig)
-
