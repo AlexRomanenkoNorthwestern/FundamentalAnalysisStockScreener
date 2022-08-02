@@ -11,7 +11,7 @@ import yfinance as yf
 
 
 # API Key for Finnhub
-apiKey = "cbjm7biad3iarlnd4tmg"
+apiKey = "INSERT_API_KEY"
 
 
 # Initialize finnhub client
