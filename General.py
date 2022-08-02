@@ -1,39 +1,30 @@
-from ast import Try
-from pandas_datareader import data as pdr
+# Import Libraries
 import datetime as dt
 import pandas as pd
-import pytrends
-from pytrends.request import TrendReq
-pytrends = TrendReq()
 from datetime import datetime, timedelta, date, time
-import math
-import plotly.graph_objects as go
 import finnhub
-import matplotlib.pyplot as plt
 import numpy as np
-
+from urllib.request import urlopen, Request
+from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
-import snscrape.modules.twitter as sntwitter
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-import nltk
-import math
-import plotly.express as px
 
 
-text_data = open("APIKey.txt", "r")
-apiKey = text_data.readline()
-apiKey = apiKey[0:len(apiKey)-1]
-text_data.close()
+# API Key for Finnhub
+apiKey = "cbjm7biad3iarlnd4tmg"
 
-# API Keys
+
+# Initialize finnhub client
 finnhub_client = finnhub.Client(api_key=apiKey)
+finnhub_client.DEFAULT_TIMEOUT = 200
 
+
+# Returns the finnhub_client to be used in other files
 def get_finnhub_client():
     return(finnhub_client)
 
+
 # Retrieves a stock ticker's company name and removes business types such as LLC, Ltd, Inc
-# Example Usage: get_brand_name('CROX')
 def get_brand_name(ticker):
     ticker = str(ticker)
     try:
@@ -43,3 +34,46 @@ def get_brand_name(ticker):
     except:
         company_name = ticker
     return(company_name)
+
+
+# Returns a stocks upcoming earnings date
+def get_earnings_date(ticker):
+    date = get_finnhub_client().company_earnings(ticker)[0]["period"]
+    return(date)
+
+
+# Retrieves a stock outstanding shares history for the past four quarters
+def get_historic_shares(ticker):
+    shares_url = 'https://ycharts.com/companies/'
+    url = shares_url + ticker + '/shares_outstanding'
+    req = Request(url=url,headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0'}) 
+    response = urlopen(req)    
+    html = BeautifulSoup(response, features="lxml")
+    html = html.find_all('td')
+    date_list = []
+    shares_list = []
+    one_quarter_ago = datetime.strptime(get_earnings_date(ticker), "%Y-%m-%d")
+    two_quarters_ago = one_quarter_ago + relativedelta(months=-3)
+    three_quarters_ago = one_quarter_ago + relativedelta(months=-6)
+    four_quarters_ago = one_quarter_ago + relativedelta(months=-9)
+    valid_dates = [one_quarter_ago.strftime('%Y-%m-%d'), two_quarters_ago.strftime('%Y-%m-%d'), 
+                   three_quarters_ago.strftime('%Y-%m-%d'), four_quarters_ago.strftime('%Y-%m-%d')]
+    for i in range(int(len(html)/2)):
+        d = datetime.strptime(html[i*2].text, '%B %d, %Y')
+        d = d.strftime('%Y-%m-%d')
+        if(i>15):
+            break
+        elif (d in valid_dates):
+            date_list.append(d)
+            shares = html[(i*2)+1].text.replace(" ", "")
+            shares = shares.replace("\n", "")
+            if (shares[5] == 'T'):
+                shares = float(shares[0:5]) * 1000
+            elif (shares[5] == 'M'):
+                shares = float(shares[0:5]) * 1000000
+            elif (shares[5] == 'B'):
+                shares = float(shares[0:5]) * 1000000000
+            shares_list.append(shares)
+    df = pd.DataFrame([date_list, shares_list]).transpose()
+    df.columns = ["Date", "Shares"]
+    return(df)
