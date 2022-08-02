@@ -21,7 +21,10 @@ import math
 import plotly.express as px
 
 
-apiKey = "cb7kvuiad3i5ufvorpb0"
+text_data = open("APIKey.txt", "r")
+apiKey = text_data.readline()
+apiKey = apiKey[0:len(apiKey)-1]
+text_data.close()
 
 # API Keys
 finnhub_client = finnhub.Client(api_key=apiKey)
