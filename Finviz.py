@@ -9,11 +9,8 @@ import pandas as pd
 from datetime import datetime, timedelta, date, time
 import finnhub
 import time
-import plotly.express as px
-import plotly.graph_objects as go
 
-
-# Used for a table
+# Finviz insider transactions (not currently used but may be used in the future)
 def insider_transactions(ticker):
     finviz_url = 'https://finviz.com/quote.ashx?t='
     url = finviz_url + ticker
@@ -37,14 +34,15 @@ def insider_transactions(ticker):
     del insider['SEC Form 4']
     return insider
 
-# net insider transactions over the past three months
+
+# Returns the net insider transactions over the past three months divided by shares outstanding
 def net_insider_transactions(ticker):
     today = datetime.now().strftime("%Y-%m-%d")
     three_months_ago = (datetime.now() + relativedelta(months=-3)).strftime("%Y-%m-%d")
     try:
         df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
     except:
-        time.sleep(3)
+        time.sleep(5)
         df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
 
     net = 0
@@ -58,27 +56,4 @@ def net_insider_transactions(ticker):
     else:
         return("{}%".format(result))
 
-def insider_chart(ticker):
-    today = datetime.now().strftime("%Y-%m-%d")
-    three_months_ago = (datetime.now() + relativedelta(months=-3)).strftime("%Y-%m-%d")
-    try:
-        df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
-    except:
-        time.sleep(3)
-        df = General.get_finnhub_client().stock_insider_transactions(ticker, three_months_ago, today)['data']
-
-    positive_sum = 0
-    negative_sum = 0
-    for i in range(len(df)):
-        if ((int(df[i]['change'])) > 0):
-            positive_sum += int(df[i]['change'])
-        else:
-            negative_sum += abs(int(df[i]['change']))
-    
-    fig = px.pie(values = [positive_sum, negative_sum], names = ["Positive", "Negative"], hole = 0.5)
-    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20),
-                          paper_bgcolor='rgba(0,0,0,0)',
-                          plot_bgcolor='rgba(0,0,0,0)',
-                          font_color = 'white')
-    return(fig)
 
