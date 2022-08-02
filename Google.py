@@ -12,9 +12,7 @@ import math
 import numpy as np
 
 
-# Returns a Dataframe for google search trends of a given search term over a period of time
-# Example Usage: google_trends_dataframe('CROX', 180)
-# For Daily Data: Total_days must be between 30 and 180
+# Returns a dataframe for google search trends of a given search term over a period of time
 def google_trends_dataframe(ticker, total_days):
 
     search_term = General.get_brand_name(ticker)
@@ -30,7 +28,7 @@ def google_trends_dataframe(ticker, total_days):
     return interest
 
   
-# Displays a Google Search Trends Graph
+# Displays a google search trends graph
 def google_trends_graph(dataframe):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=dataframe.index, y = dataframe.iloc[:,0],
@@ -44,13 +42,15 @@ def google_trends_graph(dataframe):
     fig.update_xaxes(title = "Date")
     fig.update_xaxes(tickangle = 0)
     fig.update_xaxes(showgrid = False)
+    fig.update_layout(title = {
+        'text': "Google Trends Searches",
+        'xanchor': 'center',
+        'x': 0.5})
     return(fig)
 
-
     
-# Returns Relative Google Trends Search Volume for a Search Term
+# Returns relative google trends search volume for a search term
 # Compares the most recent 1/4 of a period to the other 3/4 of the period
-# Returns a value from -100% to infinityt%
 def relative_search_volume_google (dataframe,total_days):
     if (len(dataframe) < total_days):
         total_days = len(dataframe)
@@ -62,4 +62,3 @@ def relative_search_volume_google (dataframe,total_days):
         return ("+{}%".format(int(result)))
     else:
         return("{}%".format(int(result)))
-
